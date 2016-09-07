@@ -1,0 +1,4 @@
+*.o
+*.hi
+exampleFeedbackTests
+Proj1test
