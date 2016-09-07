@@ -2,11 +2,12 @@ module Proj1 (feedback, initialGuess, nextGuess, GameState) where
 
 import Card
 import Data.List
+import qualified Data.Set as Set
 
 data GameState = GameState {
     numGuesses :: Int,
     numCards :: Int,
-    optionsSpace :: [Card],
+    optionsSpace :: [[Card]],
     won :: Bool -- True if won, false otherwise.
 } deriving (Show)
 
@@ -42,17 +43,6 @@ every n xs = case drop (n-1) xs of
               (y:ys) -> y : every n ys
               [] -> []
 
---initalCards :: Int -> Int -> GameState -> [Card]
---initialCards start inc s = 
-
-getCards :: Int -> GameState -> [Card]
-getCards 1 s = [head $ optionsSpace s]
-getCards i s = (head $ optionsSpace s) : getCards (i-1) ns
-    where
-    updateState s = s {optionsSpace = tail $ optionsSpace s}
-    ns = updateState s
-
--- selectCard :: GameState -> Card
 
 initialGuess 0 = error "Need at least 1 card"
 initialGuess i = (cards, state)
@@ -63,10 +53,44 @@ initialGuess i = (cards, state)
         suits = take i [Club ..]
         ranks = take i $ every (13 `div` i) [R2 ..]
     -- The space of options is all cards except for those already guessed.
-    state = GameState {numGuesses=0, numCards=i, optionsSpace=[(Card Club R2) .. (Card Spade Ace)] \\ cards, won=False}
+    state = GameState {numGuesses=0, numCards=i, optionsSpace=(getOptionsSpace i) \\ [cards], won=False}
+
+-- One way of maybe getting all possible guesses:
+-- [x | x <- subsequences [(Card Club R2) .. (Card Spade Ace)], length x == 2]
+-- Another (much better) way:
+-- cartProd xs ys = [[x,y] | x <- xs, y <- ys]
+-- cartProd [(Card Club R2) .. (Card Spade Ace)] [(Card Club R2) .. (Card Spade Ace)]
+-- The above however allows invalid guesses like (2C, 2C).
+-- The best way to do this is:
+-- cartProd xs ys = [[x,y] | x <- xs, y <- ys, x /= y]
+-- We still have a problem, duplicate guesses, e.g. (2C, 3C) and (3C, 2C).
+-- This code gets around that also:
+-- cartProd xs ys = nub [(sort [x,y]) | x <- xs, y <- ys, x /= y]
+-- Finally call it with this:
+-- cartProd [(Card Club R2) .. (Card Spade Ace)] [(Card Club R2) .. (Card Spade Ace)]
+-- This only currently works for guesses of length 2.
+
+allDifferent :: (Eq a) => [a] -> Bool
+allDifferent list = case list of
+    []      -> True
+    (x:xs)  -> x `notElem` xs && allDifferent xs
+
+nubOrd :: Ord a => [a] -> [a] 
+nubOrd xs = go Set.empty xs where
+  go s (x:xs)
+   | x `Set.member` s = go s xs
+   | otherwise        = x : go (Set.insert x s) xs
+  go _ _              = []
+
+getOptionsSpace :: Int -> [[Card]]
+getOptionsSpace i = nubOrd [sort x | x <- sequence $ replicate i cards, allDifferent x]
+    where
+    cards = [(Card Club R2) .. (Card Spade Ace)]
+
+
 
 nextGuess (prevGuess, state) feedback = (newGuess, newState)
     where
-    newGuess = getCards (numCards state) state
-    updateState s = s {optionsSpace = optionsSpace s \\ newGuess}
+    newGuess = head $ optionsSpace state
+    updateState s = s {optionsSpace = optionsSpace s \\ [newGuess]}
     newState = updateState state
