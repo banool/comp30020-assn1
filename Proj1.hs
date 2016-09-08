@@ -38,11 +38,10 @@ feedback answer guess = (correct, lower, sameRank, higher, sameSuit) where
     correct = length $ intersect guess answer
 
     -- 2/3. Get ranks lower than lowest in guess and ranks higher than highest in guess.
-    _sortedGuess    = sort guess
-    _guessRanks     = [rank r | r <- _sortedGuess]
-    _answerRanks    = [rank r | r <- answer]
+    _guessRanks  = sort [rank r | r <- guess]
+    _answerRanks = sort [rank r | r <- answer]
 
-    lower = length $ filter (< head _guessRanks) _answerRanks
+    lower  = length $ filter (< head _guessRanks) _answerRanks
     higher = length $ filter (> last _guessRanks) _answerRanks
 
     -- 4. Get same ranks.
@@ -86,8 +85,9 @@ every n xs = case drop (n-1) xs of
               (y:ys) -> y : every n ys
               [] -> []
 
--- Creates an optimal initial guess. This means each card has a different suit and the ranks
--- are equidistant from each other based on the number of cards in the guess (13/i).
+-- Creates an optimal initial guess. This means that each card has a different suit and the
+-- ranks are equidistant from each other based on the number of cards in the guess (13/n).
+-- Only need to consider up to 4 cards.
 initialGuess 0 = error "Need at least 1 card"
 initialGuess i = (cards, state)
     where
