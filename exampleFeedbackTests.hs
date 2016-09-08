@@ -21,6 +21,7 @@ guess5  = [(Card Club R3), (Card Heart R4)]
 answer6 = [(Card Spade R9),(Card Club R5),(Card Spade R3),(Card Spade R2)]
 guess6  = [(Card Spade R3),(Card Club R2),(Card Diamond R9),(Card Spade R5)]
 
+
 main = do
     print $ "Q1: " ++ (show $ feedback answer1 guess1) ++ " = 2,0,2,0,2"
     print $ "Q2: " ++ (show $ feedback answer2 guess2) ++ " = 1,0,1,1,2"
@@ -28,3 +29,14 @@ main = do
     print $ "Q4: " ++ (show $ feedback answer4 guess4) ++ " = 0,0,1,1,1"
     print $ "Q5: " ++ (show $ feedback answer5 guess5) ++ " = 0,1,0,1,1"
     print $ "Q6: " ++ (show $ feedback answer6 guess6) ++ " = 1,0,4,0,3"
+
+    let myGuessWithState = initialGuess 2
+    let myGuess      = fst myGuessWithState
+    let myFeedback   = feedback [(Card Club R8), (Card Heart Jack)] myGuess 
+    print $ "Sample guess: " ++ (show myGuess) ++ " and its feedback: " ++ (show myFeedback)
+    print $ "Note the feedback '_,0,_,0,_' indicating that guess cards are within the ranks of the answer cards."
+
+    print $ getSpaceNoLowerHigher myGuessWithState myFeedback
+    
+
+

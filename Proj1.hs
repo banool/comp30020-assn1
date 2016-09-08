@@ -20,7 +20,7 @@ data GameState = GameState {
 feedback :: [Card] -> [Card] -> (Int,Int,Int,Int,Int)
 initialGuess :: Int -> ([Card],GameState)
 -- Takes guess and gamestate, and the feedback, and produces a new guess and gamestate.
-nextGuess :: ([Card],GameState) ->(Int,Int,Int,Int,Int) -> ([Card],GameState)
+nextGuess :: ([Card],GameState) -> (Int,Int,Int,Int,Int) -> ([Card],GameState)
 
 
 
@@ -106,15 +106,67 @@ initialGuess i = (cards, state)
 -- Code for the nextGuess function.
 ----
 
--- Currently just keeps taking the next possible guess until we get it right.
-nextGuess (prevGuess, state) feedback = (newGuess, newState)
+-- Returns a new options space without cards that can't be in the answer based on
+-- removing cards than are lower than the lowest rank, vice versa for highest.
+getSpaceNoLowerHigher :: ([Card], GameState) -> (Int,Int,Int,Int,Int) -> [[Card]]
+getSpaceNoLowerHigher (prevGuess, state) fb = newSpace
     where
-    newGuess = head $ optionsSpace state
-    updateState s = s {optionsSpace = optionsSpace s \\ [newGuess]}
-    newState = updateState state
+    _guessRanks  = sort [rank r | r <- prevGuess]
+    _lowestRank  = head _guessRanks
+    _highestRank = last _guessRanks
+
+    _lower  = (\(_,a,_,_,_) -> a) fb
+    _higher = (\(_,_,_,a,_) -> a) fb
+
+    -- If no cards in the answer are lower rank than the lowest in the previous 
+    -- guess, remove all guesses from the options space that have a rank lower 
+    -- than the lowest in the previous guess.
+    _noLower = 
+        if _lower == 0
+            -- Keep an option in the list if none of the cards are lower than the lowest.
+            then [option | option <- optionsSpace state, not $ any (\c -> (rank c) < _lowestRank) [c | c <- option]]
+            else optionsSpace state
+    _noHigher = 
+        if _higher == 0
+            then [option | option <- _noLower, not $ any (\c -> (rank c) > _highestRank) [c | c <- option]]
+            else optionsSpace state
+
+    newSpace = _noHigher
+
+-- Applies the algorithm for mastermind described here, except obviously for this game:
+-- https://math.stackexchange.com/questions/1192961/knuths-mastermind-algorithm
+-- It works like this:
+--     Go through the possible guess space.
+--     For each possibility, treat it if it were the answer.
+--     Check if you get the same feedback with this as the answer compared to the previous guess.
+--     If you don't get the same response, this possibility cannot be the answer.
+getKnuthSpace :: ([Card], GameState) -> (Int,Int,Int,Int,Int) -> [[Card]]
+getKnuthSpace (prevGuess, state) fb = newSpace
+    where
+    newSpace = [option | option <- optionsSpace state, feedback option prevGuess == fb]
+
+-- Takes a gamestate and returns it with the new optionsSpace applied.
+updateStateSpace :: GameState -> [[Card]] -> GameState
+updateStateSpace gs newSpace = gs {optionsSpace = newSpace}
 
 
+-- Currently just keeps taking the next possible guess until we get it right.
+nextGuess (prevGuess, state) fb = (newGuess, newState)
+    where
+    -- 2/3. Get ranks lower than lowest in guess and ranks higher than highest in guess.
+    _intermediateSpace1 = optionsSpace state \\ [prevGuess]
+    _intermediateSpace2 = getSpaceNoLowerHigher (prevGuess, updatedSpace) fb
+        where updatedSpace = updateStateSpace state _intermediateSpace1 
+    _intermediateSpace3 = getKnuthSpace (prevGuess, updatedSpace) fb
+        where updatedSpace = updateStateSpace state _intermediateSpace2
 
+    _newSpace = _intermediateSpace3
+
+    newGuess = head $ _newSpace
+    newState = updateStateSpace state _newSpace
+
+
+-- make guess
 
 
 
