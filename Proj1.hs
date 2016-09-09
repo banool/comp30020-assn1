@@ -5,7 +5,7 @@ import Data.List
 import qualified Data.Set as Set
 
 ----
--- GameState type. TODO is this a type?
+-- GameState record.
 ----
 
 data GameState = GameState {
@@ -19,7 +19,6 @@ data GameState = GameState {
 ----
 feedback :: [Card] -> [Card] -> (Int,Int,Int,Int,Int)
 initialGuess :: Int -> ([Card],GameState)
--- Takes guess and gamestate, and the feedback, and produces a new guess and gamestate.
 nextGuess :: ([Card],GameState) -> (Int,Int,Int,Int,Int) -> ([Card],GameState)
 
 
@@ -33,6 +32,8 @@ nextGuess :: ([Card],GameState) -> (Int,Int,Int,Int,Int) -> ([Card],GameState)
 -- https://stackoverflow.com/questions/27332815/haskell-intersection-with-duplicates
 intersectNoDuplicates xs ys = xs \\ (xs \\ ys)
 
+-- Takes the answer and guess and returns feedback. All 5 parts of the feedback are implemented
+-- in this function body, none were complicated enough to require their own functions.
 feedback answer guess = (correct, lower, sameRank, higher, sameSuit) where
     -- 1. Get all the correct guesses.
     correct = length $ intersect guess answer
@@ -45,10 +46,10 @@ feedback answer guess = (correct, lower, sameRank, higher, sameSuit) where
     higher = length $ filter (> last _guessRanks) _answerRanks
 
     -- 4. Get same ranks.
-    sameRank = length $ intersectNoDuplicates _answerRanks _guessRanks -- todo verify that these actually work.
+    sameRank = length $ intersectNoDuplicates _answerRanks _guessRanks
 
     -- 5. Get same suits.
-    sameSuit = length $ intersectNoDuplicates [suit s | s <- answer] [suit s | s <- guess] -- todo verify that these actually work.
+    sameSuit = length $ intersectNoDuplicates [suit s | s <- answer] [suit s | s <- guess]
 
 
 
@@ -64,7 +65,9 @@ allDifferent list = case list of
     []      -> True
     (x:xs)  -> x `notElem` xs && allDifferent xs
 
+
 -- Efficient implementation of nub.
+-- https://hackage.haskell.org/package/extra-1.5/docs/Data-List-Extra.html
 nubOrd :: Ord a => [a] -> [a] 
 nubOrd xs = go Set.empty xs where
   go s (x:xs)
@@ -72,12 +75,15 @@ nubOrd xs = go Set.empty xs where
    | otherwise        = x : go (Set.insert x s) xs
   go _ _              = []
 
+
 -- Enumerates all the possible guesses at the start of the game.
 -- Works for any number of cards and watches out for duplicate and invalid guesses.
 getOptionsSpace :: Int -> [[Card]]
 getOptionsSpace i = nubOrd [sort x | x <- sequence $ replicate i cards, allDifferent x]
     where
+    -- cards = [(Card Club R2) ..] should work, but doesn't for some reason.
     cards = [(Card Club R2) .. (Card Spade Ace)]
+
 
 -- Takes every nth element of a list:
 -- https://stackoverflow.com/questions/2026912/how-to-get-every-nth-element-of-an-infinite-list-in-haskell
@@ -85,13 +91,13 @@ every n xs = case drop (n-1) xs of
               (y:ys) -> y : every n ys
               [] -> []
 
+
 -- Creates an optimal initial guess. This means that each card has a different suit and the
 -- ranks are equidistant from each other based on the number of cards in the guess (13/n).
 -- Only need to consider up to 4 cards.
 initialGuess 0 = error "Need at least 1 card"
 initialGuess i = (cards, state)
     where
-    -- optionsSpace=[(Card Club R2) ..] should work, but doesn't for some reason.
     cards = zipWith Card suits ranks
         where
         suits = take i [Club ..]
@@ -133,6 +139,7 @@ getSpaceNoLowerHigher (prevGuess, state) fb = newSpace
 
     newSpace = _noHigher
 
+
 -- Applies the algorithm for mastermind described here, except obviously for this game:
 -- https://math.stackexchange.com/questions/1192961/knuths-mastermind-algorithm
 -- It works like this:
@@ -144,6 +151,7 @@ getKnuthSpace :: ([Card], GameState) -> (Int,Int,Int,Int,Int) -> [[Card]]
 getKnuthSpace (prevGuess, state) fb = newSpace
     where
     newSpace = [option | option <- optionsSpace state, feedback option prevGuess == fb]
+
 
 -- Takes a gamestate and returns it with the new optionsSpace applied.
 updateStateSpace :: GameState -> [[Card]] -> GameState
@@ -164,25 +172,3 @@ nextGuess (prevGuess, state) fb = (newGuess, newState)
 
     newGuess = head $ _newSpace
     newState = updateStateSpace state _newSpace
-
-
--- make guess
-
-
-
-
-
--- One way of maybe getting all possible guesses:
--- [x | x <- subsequences [(Card Club R2) .. (Card Spade Ace)], length x == 2]
--- Another (much better) way:
--- cartProd xs ys = [[x,y] | x <- xs, y <- ys]
--- cartProd [(Card Club R2) .. (Card Spade Ace)] [(Card Club R2) .. (Card Spade Ace)]
--- The above however allows invalid guesses like (2C, 2C).
--- The best way to do this is:
--- cartProd xs ys = [[x,y] | x <- xs, y <- ys, x /= y]
--- We still have a problem, duplicate guesses, e.g. (2C, 3C) and (3C, 2C).
--- This code gets around that also:
--- cartProd xs ys = nub [(sort [x,y]) | x <- xs, y <- ys, x /= y]
--- Finally call it with this:
--- cartProd [(Card Club R2) .. (Card Spade Ace)] [(Card Club R2) .. (Card Spade Ace)]
--- This only currently works for guesses of length 2.

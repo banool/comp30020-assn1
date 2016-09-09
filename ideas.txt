@@ -1,0 +1,27 @@
+-- One way of maybe getting all possible guesses:
+-- [x | x <- subsequences [(Card Club R2) .. (Card Spade Ace)], length x == 2]
+-- Another (much better) way:
+-- cartProd xs ys = [[x,y] | x <- xs, y <- ys]
+-- cartProd [(Card Club R2) .. (Card Spade Ace)] [(Card Club R2) .. (Card Spade Ace)]
+-- The above however allows invalid guesses like (2C, 2C).
+-- The best way to do this is:
+-- cartProd xs ys = [[x,y] | x <- xs, y <- ys, x /= y]
+-- We still have a problem, duplicate guesses, e.g. (2C, 3C) and (3C, 2C).
+-- This code gets around that also:
+-- cartProd xs ys = nub [(sort [x,y]) | x <- xs, y <- ys, x /= y]
+-- Finally call it with this:
+-- cartProd [(Card Club R2) .. (Card Spade Ace)] [(Card Club R2) .. (Card Spade Ace)]
+-- This only currently works for guesses of length 2.
+
+
+
+
+
+-- Efficient implementation of nub.
+nubOrd :: Ord a => [a] -> [a] 
+nubOrd xs = go Set.empty xs where
+  go s (x:xs)
+   | x `Set.member` s = go s xs
+   | otherwise        = x : go (Set.insert x s) xs
+  go _ _              = []
+
