@@ -1,10 +1,9 @@
 -- File     : Proj1.hs
--- Author   : Daniel Porteous
--- Purpose  : Implement guessing card game for project 1
+-- Author   : Daniel Porteous porteousd 696965
+-- Purpose  : Guessing card game for Project 1
 
--- Note: Links to stackoverflow indicate where inspiration for the code came 
---       from. The code that appears here was written by me and will likely 
---       look different.
+-- Note: Links to stackoverflow indicate initial inspiration for the code. 
+-- The code that appears here was written by me and will likely look different.
 
 module Proj1 (feedback, initialGuess, nextGuess, GameState) where
 
@@ -38,8 +37,9 @@ nextGuess :: ([Card],GameState) -> (Int,Int,Int,Int,Int) -> ([Card],GameState)
 ----
 
 -- Intersect without duplicates.
--- https://stackoverflow.com/questions/27332815/haskell-intersection-with-duplicates
+-- http://goo.gl/nfq7pe
 intersectNoDuplicates xs ys = xs \\ (xs \\ ys)
+
 
 -- Takes the answer and guess and returns feedback. All 5 parts of the feedback 
 -- are implemented in this function body, none were complicated enough to 
@@ -67,20 +67,23 @@ feedback answer guess = (correct, lower, sameRank, higher, sameSuit) where
 ----
 
 -- Helper for getOptionsSpace. Ensures that all elements in a list are unique.
--- https://stackoverflow.com/questions/31036474/haskell-checking-if-all-list-elements-are-unique
+-- http://goo.gl/IJJAs3
 allDifferent :: (Eq a) => [a] -> Bool
 allDifferent [] = True
 allDifferent (x:xs) = x `notElem` xs && allDifferent xs
+
 
 -- Efficient implementation of nub.
 -- https://hackage.haskell.org/package/extra-1.5/docs/Data-List-Extra.html
 -- This is just for time improvements, regular nub could just as easily be used.
 nubOrd :: Ord a => [a] -> [a] 
-nubOrd xs = go Set.empty xs where
-  go s (x:xs)
-   | x `Set.member` s = go s xs
-   | otherwise        = x : go (Set.insert x s) xs
-  go _ _              = []
+nubOrd xs = go Set.empty xs
+    where
+    go s (x:xs)
+        | x `Set.member` s = go s xs
+        | otherwise        = x : go (Set.insert x s) xs
+    go _ _                 = []
+
 
 -- Enumerates all the possible guesses at the start of the game.
 -- Works for any number of cards and checks for duplicate and invalid guesses.
@@ -90,12 +93,14 @@ getOptionsSpace i = nubOrd [sort x | x <- sequence $ replicate i cards, allDiffe
     -- cards = [(Card Club R2) ..] should work, but doesn't for some reason.
     cards = [(Card Club R2) .. (Card Spade Ace)]
 
+
 -- Takes every nth element of a list:
--- https://stackoverflow.com/questions/2026912/how-to-get-every-nth-element-of-an-infinite-list-in-haskell
+-- http://goo.gl/cSBnz5
 -- The drop function returns the latter part of the list starting from n.
 every n xs = case drop (n-1) xs of
             (y:ys)  -> y : every n ys
             []      -> []
+
 
 -- Creates an optimal initial guess. This means that each card has a different 
 -- suit and the ranks are equidistant from each other based on the number of 
@@ -149,8 +154,9 @@ getSpaceNoLowerHigher (prevGuess, state) fb = newSpace
 
     newSpace = _noHigher
 
+
 -- Applies the algorithm for mastermind option space reduction described here:
--- https://math.stackexchange.com/questions/1192961/knuths-mastermind-algorithm
+-- http://goo.gl/J8x2Wk
 -- It works like this:
 --     Go through the possible guess space.
 --     For each possibility, treat it if it were the answer.
@@ -191,5 +197,5 @@ nextGuess (prevGuess, state) fb = (newGuess, newState)
 
     _newSpace = _intermediateSpace3
 
-    newGuess = head $ _newSpace
+    newGuess = head _newSpace
     newState = updateStateSpace state _newSpace
