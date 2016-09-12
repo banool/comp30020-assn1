@@ -3,7 +3,7 @@
 -- Purpose  : Guessing card game for Project 1
 
 -- Note: Links to stackoverflow indicate initial inspiration for the code. 
--- The code that appears here was written by me and will likely look different.
+-- The code that appears here was written by me and will look different.
 
 module Proj1 (feedback, initialGuess, nextGuess, GameState) where
 
@@ -41,9 +41,9 @@ nextGuess :: ([Card],GameState) -> (Int,Int,Int,Int,Int) -> ([Card],GameState)
 intersectNoDuplicates xs ys = xs \\ (xs \\ ys)
 
 
--- Takes the answer and guess and returns feedback. All 5 parts of the feedback 
--- are implemented in this function body, none were complicated enough to 
--- require their own functions.
+-- Takes the answer and guess and returns feedback. All 5 parts of the 
+-- feedbackare implemented in this function body, none were complicated 
+-- enough to require their own functions.
 feedback answer guess = (correct, lower, sameRank, higher, sameSuit) where
     -- 1. Get all the correct guesses.
     correct = length $ intersect guess answer
@@ -58,8 +58,10 @@ feedback answer guess = (correct, lower, sameRank, higher, sameSuit) where
     -- 4. Get same ranks.
     sameRank = length $ intersectNoDuplicates _answerRanks _guessRanks
 
-    -- 5. Get same suits.
-    sameSuit = length $ intersectNoDuplicates [suit s | s <- answer] [suit s | s <- guess]
+    -- 5. Get same suits. Only in separate variables to reduce line length.
+    _guessSuits  = [suit s | s <- guess]
+    _answerSuits = [suit s | s <- answer]
+    sameSuit = length $ intersectNoDuplicates _answerSuits _guessSuits
 
 
 ----
@@ -75,7 +77,7 @@ allDifferent (x:xs) = x `notElem` xs && allDifferent xs
 
 -- Efficient implementation of nub.
 -- https://hackage.haskell.org/package/extra-1.5/docs/Data-List-Extra.html
--- This is just for time improvements, regular nub could just as easily be used.
+-- This is just for time improvements, regular nub could easily be used.
 nubOrd :: Ord a => [a] -> [a] 
 nubOrd xs = go Set.empty xs
     where
@@ -88,10 +90,11 @@ nubOrd xs = go Set.empty xs
 -- Enumerates all the possible guesses at the start of the game.
 -- Works for any number of cards and checks for duplicate and invalid guesses.
 getOptionsSpace :: Int -> [[Card]]
-getOptionsSpace i = nubOrd [sort x | x <- sequence $ replicate i cards, allDifferent x]
+getOptionsSpace i = nubOrd [sort x | x <- _variations, allDifferent x]
     where
     -- cards = [(Card Club R2) ..] should work, but doesn't for some reason.
     cards = [(Card Club R2) .. (Card Spade Ace)]
+    _variations = sequence $ replicate i cards
 
 
 -- Takes every nth element of a list:
@@ -113,19 +116,19 @@ initialGuess i = (cards, state)
         suits = take i [Club ..]
         ranks = take i $ every (cardsPerSuit `div` i) [R2 ..]
     -- The space of options is all cards except for those already guessed.
-    state = GameState {numCards=i, optionsSpace=(getOptionsSpace i) \\ [cards]}
+    state = GameState {numCards=i, optionsSpace=(getOptionsSpace i)}
 
 
 ----
 -- Code for the nextGuess function.
 ----
 
--- Returns a new optionsSpace without cards that can't be in the answer based on
+-- Returns a new optionsSpace minus cards that can't be in the answer based on
 -- removing cards than are lower than the lowest rank, vice versa for highest.
--- This function reduces the space by far less than the getKnuthSpace function,
--- if at all, but is a demonstration of a more bulky function.
-getSpaceNoLowerHigher :: ([Card], GameState) -> (Int,Int,Int,Int,Int) -> [[Card]]
-getSpaceNoLowerHigher (prevGuess, state) fb = newSpace
+-- This function reduces the space by far less than the getKnuthSpace
+-- function, if at all, but is a demonstration of a more bulky function.
+removeLowerHigher :: ([Card], GameState) -> (Int,Int,Int,Int,Int) -> [[Card]]
+removeLowerHigher (prevGuess, state) fb = newSpace
     where
     _guessRanks  = sort [rank r | r <- prevGuess]
     _lowestRank  = head _guessRanks
@@ -136,9 +139,9 @@ getSpaceNoLowerHigher (prevGuess, state) fb = newSpace
 
     _prevSpace = optionsSpace state
 
-    -- If no cards in the answer are lower rank than the lowest in the previous 
-    -- guess, remove all guesses from the options space that have a rank lower 
-    -- than the lowest in the previous guess.
+    -- If no cards in the answer are lower rank than the lowest in the
+    -- previous guess, remove all guesses from the options space that have a
+    --  rank lower than the lowest in the previous guess.
     _noLower = 
         if _lower == 0
             -- Keep an option in the optionsSpace list only if none of the 
@@ -166,10 +169,12 @@ getSpaceNoLowerHigher (prevGuess, state) fb = newSpace
 getKnuthSpace :: ([Card], GameState) -> (Int,Int,Int,Int,Int) -> [[Card]]
 getKnuthSpace (prevGuess, state) fb = newSpace
     where
-    newSpace = [option | option <- optionsSpace state, feedback option prevGuess == fb]
+    newSpace = [option | option <- optionsSpace state, 
+        feedback option prevGuess == fb]
 
 
--- Takes a gamestate and optionsSpace and returns it with the new optionsSpace.
+-- Takes a gamestate and optionsSpace and returns a GameState with the new 
+-- optionsSpace applied to it.
 updateStateSpace :: GameState -> [[Card]] -> GameState
 updateStateSpace gs newSpace = gs {optionsSpace = newSpace}
 
@@ -185,17 +190,17 @@ nextGuess (prevGuess, state) fb = (newGuess, newState)
     where
     
     -- Remove the previous guess from the state since it has been checked.
-    _intermediateSpace1 = optionsSpace state \\ [prevGuess]
+    _spaceNoPrevGuess = optionsSpace state \\ [prevGuess]
 
     -- Get ranks lower than lowest in guess and ranks higher than highest.
-    _intermediateSpace2 = getSpaceNoLowerHigher (prevGuess, updatedSpace) fb
-        where updatedSpace = updateStateSpace state _intermediateSpace1
+    _spaceNoOuterRanks = removeLowerHigher (prevGuess, updatedSpace) fb
+        where updatedSpace = updateStateSpace state _spaceNoPrevGuess
 
     -- Apply the Knuth algorithm for optionsSpace reduction.
-    _intermediateSpace3 = getKnuthSpace (prevGuess, updatedSpace) fb
-        where updatedSpace = updateStateSpace state _intermediateSpace2
+    _spaceKnuth = getKnuthSpace (prevGuess, updatedSpace) fb
+        where updatedSpace = updateStateSpace state _spaceNoOuterRanks
 
-    _newSpace = _intermediateSpace3
+    _newSpace = _spaceKnuth
 
     newGuess = head _newSpace
     newState = updateStateSpace state _newSpace
